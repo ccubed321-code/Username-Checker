@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name='impact-site-verification' value='aefb180e-dc7d-4ff4-8ca8-4084774a0c75'>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Username Availability Checker — Is your name taken?</title>
+<meta name="description" content="Check if a username is taken or available across TikTok, Instagram, YouTube, Twitch, X, Snapchat, GitHub, Steam, Pinterest and Reddit — free, instant.">
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --line:#2a313a; --text:#e6edf3; --dim:#9aa7b4; --green:#2ea043; --red:#d64545; --gray:#6e7b8a; --orange:#d9930d; --accent:#4f8ff7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 30px; margin: 18px 0 6px; }
+  .sub { color: var(--dim); margin: 0 0 22px; }
+  .search { display:flex; gap:10px; }
+  .search input { flex:1; padding:14px 16px; font-size:17px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); }
+  .search button { padding:14px 22px; font-size:16px; font-weight:600; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer; }
+  .search button:disabled { opacity:.55; cursor:wait; }
+  .score { display:none; margin:22px 0 6px; font-size:20px; font-weight:700; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:12px; margin-top:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .card .top { display:flex; justify-content:space-between; align-items:center; }
+  .pname { font-weight:700; font-size:16px; }
+  .badge { font-size:12px; font-weight:700; padding:4px 9px; border-radius:999px; color:#fff; }
+  .available { background:var(--green); } .taken { background:var(--red); } .unknown { background:var(--gray); } .invalid { background:var(--orange); }
+  .note { color:var(--dim); font-size:13px; margin:9px 0 12px; min-height:16px; }
+  .card a.btn { display:inline-block; text-decoration:none; font-size:13px; font-weight:600; padding:7px 12px; border-radius:8px; background:var(--accent); color:#fff; }
+  .card a.btn.ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
+  .twists { display:none; margin-top:22px; }
+  .twists .lbl { color:var(--dim); font-size:14px; margin-bottom:8px; }
+  .chip { display:inline-block; margin:0 8px 8px 0; padding:7px 13px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--text); cursor:pointer; font-size:14px; }
+  .domain { display:none; margin-top:22px; background:#12233d; border:1px solid #1f4e8c; border-radius:12px; padding:16px; }
+  .domain a { color:#7db4ff; font-weight:700; }
+  .ad-slot { margin:26px 0 0; border:1.5px dashed var(--line); border-radius:12px; color:var(--dim); text-align:center; padding:20px 10px; font-size:13px; }
+  .err { color:#ff9c9c; margin-top:14px; display:none; }
+  footer { margin-top:40px; color:var(--dim); font-size:13px; line-height:1.55; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Username Availability Checker</h1>
+  <p class="sub">One search checks your name across 10 platforms. Free, instant, no sign-up.</p>
+
+  <div class="search">
+    <input id="handle" type="text" placeholder="Try a username, like CodeyDoesWeather" autocomplete="off" spellcheck="false">
+    <button id="go">Check everywhere</button>
+  </div>
+  <div class="err" id="err"></div>
+
+  <div class="score" id="score"></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="domain" id="domainBox">
+    <strong>Lock the name down properly:</strong>
+    <span id="domainText"></span>
+    <a id="domainLink" href="#" target="_blank" rel="noopener sponsored">Check the .com →</a>
+  </div>
+
+  <div class="twists" id="twists">
+    <div class="lbl">Taken in too many places? Try a twist:</div>
+    <div id="chips"></div>
+  </div>
+
+  <!-- AD SLOT: paste your AdSense (or other ad network) code here after approval -->
+  <div class="ad-slot">Ad slot — your ads go here once your ad account is approved</div>
+
+  <footer>
+    Results marked “Couldn’t verify” mean that platform blocks automated checks — tap through and look for yourself rather than trusting a guess.
+    Availability can change at any time; a name shown as available is not reserved until you actually sign up with it.
+  </footer>
+</div>
+
+<script>
+// ===== OWNER SETTINGS — EDIT THESE =====
+// Domain registrar search link. After joining a registrar affiliate program
+// (for example Namecheap Affiliate), replace this with your affiliate link template.
+const DOMAIN_LINK_TEMPLATE = 'https://www.namecheap.com/domains/registration/results/?domain=__HANDLE__.com';
+// =======================================
+
+const $ = (id) => document.getElementById(id);
+const BADGE_TEXT = { available: 'Available', taken: 'Taken', unknown: "Couldn't verify", invalid: 'Not allowed' };
+
+async function run(raw) {
+  const u = raw.trim().replace(/^@+/, '');
+  const err = $('err'); err.style.display = 'none';
+  if (!u) { err.textContent = 'Type a username first.'; err.style.display = 'block'; return; }
+  const btn = $('go'); btn.disabled = true; btn.textContent = 'Checking…';
+  $('score').style.display = 'none'; $('grid').innerHTML = ''; $('twists').style.display = 'none'; $('domainBox').style.display = 'none';
+  try {
+    const r = await fetch('/api/check?u=' + encodeURIComponent(u));
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Something went wrong');
+    render(u, data.results);
+  } catch (e) {
+    err.textContent = e.message; err.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check everywhere';
+  }
+}
+
+function render(u, results) {
+  const open = results.filter(r => r.status === 'available').length;
+  const decided = results.filter(r => r.status === 'available' || r.status === 'taken').length;
+  const score = $('score');
+  score.textContent = open + ' of ' + decided + ' checked platforms look open for “' + u + '”';
+  score.style.display = 'block';
+
+  $('grid').innerHTML = results.map(r => {
+    const action = r.status === 'available'
+      ? '<a class="btn" href="' + r.signupUrl + '" target="_blank" rel="noopener">Claim it →</a>'
+      : (r.status === 'taken'
+        ? '<a class="btn ghost" href="' + r.profileUrl + '" target="_blank" rel="noopener">View profile</a>'
+        : '<a class="btn ghost" href="' + r.profileUrl + '" target="_blank" rel="noopener">Check it yourself</a>');
+    return '<div class="card"><div class="top"><span class="pname">' + r.platform + '</span>' +
+      '<span class="badge ' + r.status + '">' + BADGE_TEXT[r.status] + '</span></div>' +
+      '<div class="note">' + r.note + '</div>' + action + '</div>';
+  }).join('');
+
+  $('domainText').textContent = ' If “' + u + '” is your brand, the matching .com is what actually makes it yours.';
+  $('domainLink').href = DOMAIN_LINK_TEMPLATE.replace('__HANDLE__', encodeURIComponent(u.toLowerCase()));
+  $('domainBox').style.display = 'block';
+
+  const twists = ['the' + u, u + 'tv', 'real' + u, u + '_', u + 'hq', 'its' + u];
+  $('chips').innerHTML = twists.map(t => '<button class="chip" data-t="' + t + '">' + t + '</button>').join('');
+  $('twists').style.display = 'block';
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { $('handle').value = c.dataset.t; run(c.dataset.t); }));
+}
+
+$('go').addEventListener('click', () => run($('handle').value));
+$('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') run($('handle').value); });
+</script>
+</body>
+</html>
