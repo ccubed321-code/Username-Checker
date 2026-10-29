@@ -1,0 +1,1 @@
+{"description":"Standalone username availability checker: checks a handle across 10 platforms server-side, with ad slots and a domain affiliate call-to-action.","engines":{"node":">=18"},"name":"username-availability-checker","private":true,"scripts":{"start":"node server.js"},"version":"1.0.0"}
